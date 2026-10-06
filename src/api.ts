@@ -1,6 +1,6 @@
 import Fastify from 'fastify';
 import { timingSafeEqual } from 'node:crypto';
-import { receiptSchema } from './model';
+import { documentSchema } from './model';
 import { Store } from './store';
 import { Queue } from './queue';
 export const PORT = 17891;
@@ -20,9 +20,9 @@ export function createApi(store:Store,queue:Queue,preview=false) {
     const expected = Buffer.from(store.token());
     if (supplied.length !== expected.length || !timingSafeEqual(supplied,expected)) return reply.code(401).send({error:'Pairing token required'});
   });
-  api.get('/v1/health',async()=>({name:'Bilyqo Print Agent',version:require('../package.json').version,preview}));
+  api.get('/v1/health',async()=>({name:'Bilyqo Print Agent',version:require('../package.json').version,preview,capabilities:['receipt','sales-report']}));
   api.post('/v1/jobs',async(req,reply)=> {
-    const parsed = receiptSchema.safeParse(req.body);
+    const parsed = documentSchema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({error:parsed.error.issues});
     const profile = store.settings();
     if (!profile.printer) return reply.code(409).send({error:'Select a printer in the agent first'});

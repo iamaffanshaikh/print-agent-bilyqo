@@ -25,3 +25,15 @@ export type Receipt = z.infer<typeof receiptSchema>;
 export type Settings = z.infer<typeof settingsSchema>;
 export type JobState = 'queued' | 'sending' | 'submitted' | 'uncertain' | 'failed';
 export const example = (): Receipt => ({jobId:crypto.randomUUID(), billNumber:'TEST-001', businessName:'Bilyqo Restaurant', address:['Printer setup receipt'], issuedAt:new Date().toISOString(), currency:'INR', items:[{name:'Paneer Butter Masala',quantity:2,unitPricePaise:22000},{name:'Butter Naan',quantity:3,unitPricePaise:4500}],taxPaise:2875,discountPaise:0,footer:'Test receipt - not a customer bill'});
+
+export const reportSchema = z.object({
+  kind: z.literal('sales-report'), jobId: z.string().uuid(), businessName: text(80),
+  issuedAt: z.string().datetime({offset:true}), title: text(80), periodLabel: text(80),
+  totalPaise: z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),
+  billCount: z.number().int().nonnegative(),
+  sections: z.array(z.object({heading:text(80),rows:z.array(z.object({label:text(240),amountPaise:z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER),indent:z.number().int().min(0).max(2).default(0)}).strict()).max(3000)}).strict()).max(8),
+  notes: z.array(text(300)).max(8)
+}).strict();
+export const documentSchema = z.union([receiptSchema,reportSchema]);
+export type SalesReport = z.infer<typeof reportSchema>;
+export type PrintDocument = z.infer<typeof documentSchema>;

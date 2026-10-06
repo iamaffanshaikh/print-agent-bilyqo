@@ -62,7 +62,7 @@ Production dependencies report zero known vulnerabilities at initial verificatio
 
 ## Bilyqo website connection
 
-The restaurant order screen now has a Printing method control. Choose Bilyqo local print agent, paste the token copied from this app, and click Connect & apply. Browser printing stays available through the same control. Sales summaries continue to use browser printing. Pairing settings and pending job IDs are scoped to the current account in this browser's local storage.
+The restaurant order screen now has a Printing method control. Choose Bilyqo local print agent, paste the token copied from this app, and click Connect & apply. Browser printing stays available through the same control. Sales summaries and detailed sales also use the configured agent. Pairing settings and pending job IDs are scoped to the current account in this browser's local storage.
 
 Website payloads include optional orderType, customerPhone and paymentMode fields. Print submission does not settle the order; the cashier confirms physical output before saving the bill. Identical receipt attempts reuse the persisted job ID. Changing receipt contents creates a new job. To intentionally reprint an unchanged receipt, check the existing output, then use browser printing; a dedicated agent reprint action is not included yet.
 
@@ -87,3 +87,7 @@ To ship new features:
 4. The Windows workflow tests/builds the app and publishes the installer, `.blockmap` and `latest.yml` in a GitHub Release. All three files are needed for update distribution. Workflow dispatch alone creates downloadable build artifacts; it does not publish an update.
 
 The version tag must match package.json. Publish stable releases with increasing versions. This change does not publish a release automatically. Verify the first upgrade on Windows (including restarting a tray-hidden app and retaining settings/token) before asking clients to update.
+
+## Version 0.1.2
+
+The /v1/jobs API also accepts kind: sales-report with title, periodLabel, totalPaise, billCount, sections (heading and rows with label, amountPaise and indent), and notes. Summary and detailed sales reports print through the same persistent queue and cut once at the end. Health advertises the sales-report capability. Update the Windows agent to this version to use website report printing.

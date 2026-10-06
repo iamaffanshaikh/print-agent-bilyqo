@@ -1,6 +1,6 @@
 import { DatabaseSync } from 'node:sqlite';
 import { randomBytes, createHash } from 'node:crypto';
-import { settingsSchema, type Receipt, type Settings, type JobState } from './model';
+import { settingsSchema, type PrintDocument, type Settings, type JobState } from './model';
 export class Store {
   readonly db: DatabaseSync;
   constructor(path: string) {
@@ -22,7 +22,7 @@ export class Store {
   saveSettings(settings: Settings) { this.write('settings',JSON.stringify(settings)); }
   token() { return this.read('token')!; }
   rotateToken() { this.write('token',randomBytes(32).toString('hex')); return this.token(); }
-  enqueue(bill: Receipt, profile: Settings) {
+  enqueue(bill: PrintDocument, profile: Settings) {
     const payload = JSON.stringify(bill); const fingerprint = createHash('sha256').update(payload).digest('hex');
     const existing = this.db.prepare('SELECT * FROM jobs WHERE id=?').get(bill.jobId);
     if (existing) { if (existing.fingerprint !== fingerprint) throw new Error('Job ID already belongs to a different receipt'); return {duplicate:true, job:this.publicJob(bill.jobId)}; }

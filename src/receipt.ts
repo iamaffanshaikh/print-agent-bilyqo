@@ -1,4 +1,4 @@
-import type { Receipt, Settings } from './model';
+import type { Receipt, Settings, SalesReport, PrintDocument } from './model';
 export function wrap(text: string, width: number): string[] {
   const result: string[] = []; let line = '';
   for (let word of text.split(/\s+/)) {
@@ -37,4 +37,21 @@ export function cutBytes(mode: Settings['cut']): Buffer {
 }
 export function receiptBytes(bill: Receipt, settings: Settings): Buffer {
   return Buffer.concat([Buffer.from([0x1b,0x40,0x1b,0x61,0]),Buffer.from(receiptText(bill,settings),'ascii'),Buffer.from('\n'.repeat(settings.feedLines)),cutBytes(settings.cut)]);
+}
+
+export function reportText(report:SalesReport,settings:Settings):string {
+ const width=settings.columns;const rule='-'.repeat(width);
+ const lines=[...wrap(report.businessName,width),...wrap(report.title,width),...wrap(report.periodLabel+' - Local time',width),rule,
+  ...pair('Total sales INR',money(report.totalPaise),width),...wrap(`${report.billCount} confirmed bills`,width)];
+ for(const section of report.sections){
+  lines.push(rule,...wrap(section.heading,width));
+  if(!section.rows.length)lines.push('No sales in this period');
+  for(const row of section.rows)lines.push(...pair(' '.repeat(row.indent*2)+row.label,money(row.amountPaise),width));
+ }
+ lines.push(rule,...report.notes.flatMap(note=>wrap(note,width)));
+ return lines.join('\n')+'\n';
+}
+export function documentBytes(document:PrintDocument,settings:Settings):Buffer {
+ if('kind' in document && document.kind==='sales-report')return Buffer.concat([Buffer.from([0x1b,0x40,0x1b,0x61,0]),Buffer.from(reportText(document,settings),'ascii'),Buffer.from('\n'.repeat(settings.feedLines)),cutBytes(settings.cut)]);
+ return receiptBytes(document as Receipt,settings);
 }

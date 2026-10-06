@@ -4,8 +4,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import assert from 'node:assert/strict';
 import { Store } from '../store';
-import { receiptSchema,settingsSchema,example } from '../model';
-import { receiptText,receiptBytes } from '../receipt';
+import { receiptSchema,settingsSchema,example,reportSchema } from '../model';
+import { receiptText,receiptBytes,documentBytes,reportText } from '../receipt';
 import { createApi, PORT } from '../api';
 import { Queue } from '../queue';
 import { Printer } from '../printer';
@@ -84,4 +84,24 @@ test('upgrade enables cutting once and preserves later explicit disabling',()=>{
   store.saveSettings({...store.settings(),cut:'none'});store.close();
   store=new Store(path);assert.equal(store.settings().cut,'none');store.close();
  } finally {rmSync(dir,{recursive:true,force:true});}
+});
+
+
+test('sales reports preserve section amounts without summing overlapping breakdowns and cut once',()=>{
+ const report=reportSchema.parse({kind:'sales-report',jobId:example().jobId,businessName:'Restaurant',issuedAt:new Date().toISOString(),title:'Daily detailed sales',periodLabel:'6 October 2026',totalPaise:10000,billCount:2,sections:[{heading:'Dish category sales',rows:[{label:'A long dish name that must wrap on narrow receipt paper',amountPaise:10000,indent:1}]},{heading:'Payment breakdown',rows:[{label:'Cash',amountPaise:10000}]}],notes:['All amounts in INR.']});
+ const settings=settingsSchema.parse({columns:32});const text=reportText(report,settings);
+ assert.ok(text.includes('Total sales INR'));assert.ok(text.includes('Payment breakdown'));assert.ok(text.split('\n').every(line=>line.length<=32));
+ const data=documentBytes(report,settings);assert.deepEqual([...data.subarray(-3)],[29,86,0]);assert.equal(data.indexOf(Buffer.from([29,86,0])),data.length-3);
+ assert.equal(reportSchema.safeParse({...report,notes:['bad\x1b@']}).success,false);
+});
+
+
+test('report API advertises capability and queues a structured report',async()=>{
+ const store=new Store(':memory:');store.saveSettings(settingsSchema.parse({printer:'Preview'}));
+ const api=createApi(store,new Queue(store,new Printer('',true)));const headers={host:`127.0.0.1:${PORT}`,authorization:`Bearer ${store.token()}`};
+ const health=await api.inject({method:'GET',url:'/v1/health',headers});assert.ok(health.json().capabilities.includes('sales-report'));
+ const report={kind:'sales-report',jobId:example().jobId,businessName:'Restaurant',issuedAt:new Date().toISOString(),title:'Daily sales summary',periodLabel:'6 October 2026',totalPaise:100,billCount:1,sections:[],notes:[]};
+ assert.equal((await api.inject({method:'POST',url:'/v1/jobs',headers,payload:report})).statusCode,202);
+ assert.equal((await api.inject({method:'POST',url:'/v1/jobs',headers,payload:report})).statusCode,200);
+ await api.close();store.close();
 });
