@@ -8,7 +8,7 @@ Use Node 24 or newer. `npm ci`, then `npm start`. On macOS/Linux the agent uses 
 
 ## Build the Windows installer
 
-Run `npm run dist:win -- --publish never` on a Windows x64 machine, or run the included GitHub Actions workflow after pushing this separate project to a repository. Output: `release/BilyqoPrintAgent-Setup-0.1.2.exe`. This scaffold does not include a code signing certificate; configure signing credentials before distributing a production installer. The workflow creates an unsigned test build.
+Run `npm run dist:win -- --publish never` on a Windows x64 machine, or run the included GitHub Actions workflow after pushing this separate project to a repository. Output: `release/BilyqoPrintAgent-Setup-0.1.3.exe`. This scaffold does not include a code signing certificate; configure signing credentials before distributing a production installer. The workflow creates an unsigned test build.
 
 ## Restaurant setup
 
@@ -83,11 +83,13 @@ To ship new features:
 
 1. Increase `version` in package.json and refresh the lockfile with `npm install --package-lock-only`.
 2. Commit and push the changes.
-3. Create and push the matching version tag, for example `git tag v0.1.2` then `git push origin v0.1.2`.
+3. Create and push the matching version tag, for example `git tag v0.1.3` then `git push origin v0.1.3`.
 4. The Windows workflow tests/builds the app and publishes the installer, `.blockmap` and `latest.yml` in a GitHub Release. All three files are needed for update distribution. Workflow dispatch alone creates downloadable build artifacts; it does not publish an update.
 
 The version tag must match package.json. Publish stable releases with increasing versions. This change does not publish a release automatically. Verify the first upgrade on Windows (including restarting a tray-hidden app and retaining settings/token) before asking clients to update.
 
-## Version 0.1.2
+## Version 0.1.3
 
 The /v1/jobs API also accepts kind: sales-report with title, periodLabel, totalPaise, billCount, sections (heading and rows with label, amountPaise and indent), and notes. Summary and detailed sales reports print through the same persistent queue and cut once at the end. Health advertises the sales-report capability. Update the Windows agent to this version to use website report printing.
+
+Version 0.1.3 also distinguishes unavailable release files, connectivity failures and update verification errors instead of reporting every failure as an internet problem. Publish the 0.1.3 installer, its blockmap and the matching latest.yml together under release tag v0.1.3.

@@ -11,7 +11,7 @@ app.whenReady().then(async()=>{
  const store=new Store(':memory:');const queue=new Queue(store,new Printer('',true));
  ipcMain.handle('state',()=>({settings:store.settings(),printers:['Preview printer (no paper output)'],jobs:store.list(),preview:true,apiError:null,endpoint:'http://127.0.0.1:17891',receipt:receiptText(example(),store.settings())}));
  let updatePhase='idle';let installed=false;
- ipcMain.handle('update-state',()=>({version:'0.1.2',phase:updatePhase,message:updatePhase==='ready'?'Version 0.2.0 is ready. Restart to install.':'Click Update to check for new features.'}));
+ ipcMain.handle('update-state',()=>({version:'0.1.3',phase:updatePhase,message:updatePhase==='ready'?'Version 0.2.0 is ready. Restart to install.':'Click Update to check for new features.'}));
  ipcMain.handle('update-check',()=>{updatePhase='ready';return true;});
  ipcMain.handle('update-install',()=>{installed=true;return true;});
  ipcMain.handle('save',(_e,value)=>store.saveSettings(settingsSchema.parse(value)));
@@ -24,7 +24,7 @@ app.whenReady().then(async()=>{
  await waitFor("document.getElementById('message').textContent.includes('Settings saved')");
  await win.webContents.executeJavaScript("document.getElementById('test').click();");
  await waitFor("document.getElementById('jobs').textContent.includes('Preview only')");
- await waitFor("document.getElementById('version').textContent.includes('0.1.2')");
+ await waitFor("document.getElementById('version').textContent.includes('0.1.3')");
  await win.webContents.executeJavaScript("document.getElementById('update').click();");
  await waitFor("document.getElementById('update').textContent==='Restart & install'");
  await win.webContents.executeJavaScript("document.getElementById('update').click();");

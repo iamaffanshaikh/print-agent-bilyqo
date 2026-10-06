@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
-import { Updates } from '../updater';
+import { Updates, updateErrorMessage } from '../updater';
 
 function setup(supported = true) {
   const backend = Object.assign(new EventEmitter(), {
@@ -34,4 +34,11 @@ test('no update, failed checks with retry, and unsupported platforms', async () 
   backend.fail = false; backend.available = true; await updates.check(); assert.equal(updates.state().phase, 'ready');
   const disabled = setup(false); await disabled.updates.check();
   assert.equal(disabled.backend.checks, 0); assert.equal(disabled.updates.state().phase, 'unsupported');
+});
+test('update failures distinguish missing release files, connectivity and verification', () => {
+  assert.match(updateErrorMessage(new Error('404 Not Found')), /public release/);
+  assert.match(updateErrorMessage(new Error('ERR_UPDATER_CHANNEL_FILE_NOT_FOUND')), /latest.yml/);
+  assert.match(updateErrorMessage(new Error('getaddrinfo ENOTFOUND github.com')), /firewall/);
+  assert.match(updateErrorMessage(new Error('sha512 checksum mismatch')), /verification failed/);
+  assert.match(updateErrorMessage(new Error('Unexpected failure')), /Unexpected failure/);
 });
