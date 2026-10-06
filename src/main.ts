@@ -7,6 +7,8 @@ import { Queue } from './queue';
 import { createApi, PORT } from './api';
 import { settingsSchema, example } from './model';
 import { receiptText, cutBytes } from './receipt';
+import { Updates } from './updater';
+import { autoUpdater } from 'electron-updater';
 if (!app.requestSingleInstanceLock()) app.quit();
 else {
   let win:BrowserWindow|null=null; let quitting=false; let tray:Tray;
@@ -19,6 +21,8 @@ else {
     const preview = process.platform!=='win32' || process.argv.includes('--preview');
     const helper = app.isPackaged ? join(process.resourcesPath,'native','print.ps1') : join(app.getAppPath(),'native','print.ps1');
     const printer = new Printer(helper,preview); const queue = new Queue(store,printer); const api = createApi(store,queue,preview);
+    const updates = new Updates(app.isPackaged && process.platform === 'win32', autoUpdater);
+    let restarting=false;
     let apiError:string|null=null;
     try { await api.listen({host:'127.0.0.1',port:PORT}); } catch(error) { apiError=error instanceof Error?error.message:'Local API unavailable'; }
     win = new BrowserWindow({width:1040,height:780,minWidth:640,minHeight:620,backgroundColor:'#f5f5f0',title:'Bilyqo Print Agent',webPreferences:{preload:join(__dirname,'preload.js'),nodeIntegration:false,contextIsolation:true,sandbox:true}});
@@ -30,13 +34,28 @@ else {
       return fn(...args);
     });
     register('state',async()=>({settings:store.settings(),printers:await printer.list(),jobs:store.list(),preview,apiError,endpoint:`http://127.0.0.1:${PORT}`,receipt:receiptText(example(),store.settings())}));
+    register('update-state',()=>({version:app.getVersion(),...updates.state()}));
+    register('update-check',()=>{void updates.check();return true;});
+    register('update-install',async()=>{
+      if(updates.state().phase!=='ready')throw new Error('Download an update first');
+      if(store.hasPendingJobs())throw new Error('Wait for queued receipts to finish before installing');
+      const choice=await dialog.showMessageBox(win!,{type:'question',buttons:['Cancel','Restart & install'],defaultId:1,cancelId:0,message:'Restart to install the update?',detail:'The print agent will briefly close. Your printer settings and pairing token will be kept.'});
+      if(choice.response!==1)return false;
+      // Stop accepting new receipts before restarting, then finish any in-flight job.
+      restarting=true;
+      await api.close();
+      await queue.drain();
+      if(store.hasPendingJobs())throw new Error('Receipts are still printing. Try again when they finish.');
+      updates.install(()=>{quitting=true;});return true;
+    });
     register('save',(value)=>{const profile=settingsSchema.parse(value);store.saveSettings(profile);if(process.platform==='win32') app.setLoginItemSettings({openAtLogin:profile.autoStart,path:process.execPath,args:['--background']});return true;});
-    register('test',()=>{const settings=store.settings();if(!settings.printer)throw new Error('Choose and save a printer first');const result=store.enqueue(example(),settings);void queue.drain();return result;});
+    register('test',()=>{if(restarting)throw new Error('Update installation is starting');const settings=store.settings();if(!settings.printer)throw new Error('Choose and save a printer first');const result=store.enqueue(example(),settings);void queue.drain();return result;});
     register('cut',async()=>{
+      if(restarting)throw new Error('Update installation is starting');
       const profile=store.settings();if(!profile.printer || profile.cut==='none')throw new Error('Save a printer and select a cutting mode first');
       const choice=await dialog.showMessageBox(win!,{type:'question',buttons:['Cancel','Test cutter'],defaultId:0,cancelId:0,message:'Feed paper and test the selected cutter?',detail:'Use this only on an ESC/POS printer with an automatic cutter. Ensure the printer is idle.'});
       if(choice.response!==1)return false;
-      const active=store.list().some(job=>job.state==='queued'||job.state==='sending');if(active)throw new Error('Wait for queued receipts to finish');
+      const active=store.hasPendingJobs();if(active)throw new Error('Wait for queued receipts to finish');
       await printer.send(profile.printer,Buffer.concat([Buffer.from([0x1b,0x40]),Buffer.from('\n'.repeat(profile.feedLines)),cutBytes(profile.cut)]));return true;
     });
     register('rotate',()=>{store.rotateToken();return true;});

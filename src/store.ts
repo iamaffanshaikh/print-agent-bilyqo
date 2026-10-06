@@ -30,6 +30,7 @@ export class Store {
     return {duplicate:false,job:this.publicJob(bill.jobId)};
   }
   next() { return this.db.prepare("SELECT * FROM jobs WHERE state='queued' ORDER BY createdAt,rowid LIMIT 1").get() as {id:string,payload:string,profile:string}|undefined; }
+  hasPendingJobs() { return !!this.db.prepare("SELECT 1 FROM jobs WHERE state IN ('queued','sending') LIMIT 1").get(); }
   update(id:string,state:JobState,error:string|null=null,spoolId:number|null=null) { this.db.prepare('UPDATE jobs SET state=?,error=?,spoolId=? WHERE id=?').run(state,error,spoolId,id); }
   publicJob(id:string) { return this.db.prepare('SELECT id,state,createdAt,error,spoolId FROM jobs WHERE id=?').get(id); }
   list() { return this.db.prepare('SELECT id,state,createdAt,error,spoolId FROM jobs ORDER BY createdAt DESC,rowid DESC LIMIT 50').all(); }

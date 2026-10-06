@@ -1,6 +1,6 @@
 {
   "name": "bilyqo-print-agent",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "description": "Bilyqo Windows receipt printing companion",
   "author": "Bilyqo",
@@ -14,14 +14,15 @@
     "test:ui": "npm run build && node scripts/launch.cjs scripts/preview-smoke.cjs"
   },
   "dependencies": {
+    "electron-updater": "^6.8.9",
     "fastify": "^5.0.0",
     "zod": "^4.0.0"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
-    "typescript": "^5.9.0",
     "electron": "44.5.1",
-    "electron-builder": "^26.0.0"
+    "electron-builder": "^26.0.0",
+    "typescript": "^5.9.0"
   },
   "build": {
     "appId": "com.bilyqo.printagent",
@@ -56,6 +57,14 @@
       "perMachine": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true
-    }
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "iamaffanshaikh",
+        "repo": "print-agent-bilyqo",
+        "releaseType": "release"
+      }
+    ]
   }
 }

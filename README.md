@@ -8,7 +8,7 @@ Use Node 24 or newer. `npm ci`, then `npm start`. On macOS/Linux the agent uses 
 
 ## Build the Windows installer
 
-Run `npm run dist:win -- --publish never` on a Windows x64 machine, or run the included GitHub Actions workflow after pushing this separate project to a repository. Output: `release/BilyqoPrintAgent-Setup-0.1.1.exe`. This scaffold does not include a code signing certificate; configure signing credentials before distributing a production installer. The workflow creates an unsigned test build.
+Run `npm run dist:win -- --publish never` on a Windows x64 machine, or run the included GitHub Actions workflow after pushing this separate project to a repository. Output: `release/BilyqoPrintAgent-Setup-0.1.2.exe`. This scaffold does not include a code signing certificate; configure signing credentials before distributing a production installer. The workflow creates an unsigned test build.
 
 ## Restaurant setup
 
@@ -50,7 +50,7 @@ Loopback HTTP access from a hosted HTTPS page varies by browser and local-networ
 - Windows version / x64 compatibility, real printer model and raw ESC/POS support.
 - Driver enumeration and permissions under the actual cashier account; test USB/LAN, paper-out, disconnect, partial writes, restart and cutter behavior.
 - Pairing UI in the Bilyqo website, browser connectivity and physical print confirmation flow.
-- Installer execution, login startup, signed distribution, update delivery and data retention policy.
+- Installer execution, login startup, signed distribution, Windows update installation and data retention policy.
 
 The Windows helper is a fixed PowerShell script with a small C# Winspool wrapper. Parameters are passed via a temporary JSON file; no user-controlled shell command interpolation. PowerShell runs without a shell, with a timeout. Enterprise policy may block its execution; validate deployment policy or replace it with a compiled signed helper. Input receipt text cannot contain escape/control commands. Printer errors are conservatively marked uncertain.
 
@@ -72,3 +72,18 @@ The first Windows x64 installer has been built on macOS through electron-builder
 
 Full cutting is enabled by default for both test receipts and website receipts. Receipt text, trailing feed and cut command are sent together as one job. Existing installations upgrade the original disabled-cut setting to full cut once; later explicit choices to disable cutting are preserved. Existing queued job snapshots are retained. Install over version 0.1.0 to keep the selected printer and pairing token. The printer must support ESC/POS automatic cutting; full versus partial behavior depends on its hardware.
 # print-agent-bilyqo
+
+## Client updates (version 0.1.2 onward)
+
+Install version 0.1.2 once on each client PC to add the Update button. After that, clients click **Update** to check and download the latest version, then **Restart & install** to apply it. Printer settings, receipt history and pairing tokens stay in the existing user data directory. Downloads do not interrupt printing; installation requires the queue to finish and briefly stops the local API. Updates are supported in installed Windows builds only. Failed downloads can be retried with Update.
+
+The update source is the public GitHub Releases of `iamaffanshaikh/print-agent-bilyqo`. The repository/releases must be publicly accessible to client PCs; private repositories need a separate public update distribution source. Do not embed a GitHub access token in the client app.
+
+To ship new features:
+
+1. Increase `version` in package.json and refresh the lockfile with `npm install --package-lock-only`.
+2. Commit and push the changes.
+3. Create and push the matching version tag, for example `git tag v0.1.2` then `git push origin v0.1.2`.
+4. The Windows workflow tests/builds the app and publishes the installer, `.blockmap` and `latest.yml` in a GitHub Release. All three files are needed for update distribution. Workflow dispatch alone creates downloadable build artifacts; it does not publish an update.
+
+The version tag must match package.json. Publish stable releases with increasing versions. This change does not publish a release automatically. Verify the first upgrade on Windows (including restarting a tray-hidden app and retaining settings/token) before asking clients to update.

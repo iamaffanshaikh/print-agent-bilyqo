@@ -6,7 +6,10 @@ export class Queue {
   private running = false;
   constructor(private store: Store, private printer: Printer) {}
   async drain() {
-    if (this.running) return;
+    if (this.running) {
+      while (this.running) await new Promise(resolve => setTimeout(resolve, 50));
+      return;
+    }
     this.running = true;
     try {
       for (let job = this.store.next(); job; job = this.store.next()) {

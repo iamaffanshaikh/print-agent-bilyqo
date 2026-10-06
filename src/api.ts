@@ -20,7 +20,7 @@ export function createApi(store:Store,queue:Queue,preview=false) {
     const expected = Buffer.from(store.token());
     if (supplied.length !== expected.length || !timingSafeEqual(supplied,expected)) return reply.code(401).send({error:'Pairing token required'});
   });
-  api.get('/v1/health',async()=>({name:'Bilyqo Print Agent',version:'0.1.1',preview}));
+  api.get('/v1/health',async()=>({name:'Bilyqo Print Agent',version:require('../package.json').version,preview}));
   api.post('/v1/jobs',async(req,reply)=> {
     const parsed = receiptSchema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({error:parsed.error.issues});

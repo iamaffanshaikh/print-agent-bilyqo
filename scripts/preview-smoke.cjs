@@ -10,6 +10,10 @@ const {Printer}=require('../dist/printer');
 app.whenReady().then(async()=>{
  const store=new Store(':memory:');const queue=new Queue(store,new Printer('',true));
  ipcMain.handle('state',()=>({settings:store.settings(),printers:['Preview printer (no paper output)'],jobs:store.list(),preview:true,apiError:null,endpoint:'http://127.0.0.1:17891',receipt:receiptText(example(),store.settings())}));
+ let updatePhase='idle';let installed=false;
+ ipcMain.handle('update-state',()=>({version:'0.1.2',phase:updatePhase,message:updatePhase==='ready'?'Version 0.2.0 is ready. Restart to install.':'Click Update to check for new features.'}));
+ ipcMain.handle('update-check',()=>{updatePhase='ready';return true;});
+ ipcMain.handle('update-install',()=>{installed=true;return true;});
  ipcMain.handle('save',(_e,value)=>store.saveSettings(settingsSchema.parse(value)));
  ipcMain.handle('test',()=>{const result=store.enqueue(example(),store.settings());void queue.drain();return result;});
  const win=new BrowserWindow({show:false,width:1040,height:900,webPreferences:{preload:join(__dirname,'../dist/preload.js'),contextIsolation:true,sandbox:true}});
@@ -20,8 +24,13 @@ app.whenReady().then(async()=>{
  await waitFor("document.getElementById('message').textContent.includes('Settings saved')");
  await win.webContents.executeJavaScript("document.getElementById('test').click();");
  await waitFor("document.getElementById('jobs').textContent.includes('Preview only')");
+ await waitFor("document.getElementById('version').textContent.includes('0.1.2')");
+ await win.webContents.executeJavaScript("document.getElementById('update').click();");
+ await waitFor("document.getElementById('update').textContent==='Restart & install'");
+ await win.webContents.executeJavaScript("document.getElementById('update').click();");
+ if(!installed)throw new Error('Update install action was not invoked');
  writeFileSync(join(tmpdir(),'bilyqo-agent-preview.png'),(await win.webContents.capturePage()).toPNG());
  win.setSize(680,900);await new Promise(r=>setTimeout(r,100));
  writeFileSync(join(tmpdir(),'bilyqo-agent-preview-compact.png'),(await win.webContents.capturePage()).toPNG());
- console.log('UI smoke passed: settings saved, test job submitted, desktop and compact screenshots captured.');store.close();app.quit();
+ console.log('UI smoke passed: settings saved, test job submitted, update and restart actions invoked, desktop and compact screenshots captured.');store.close();app.quit();
 }).catch(error=>{console.error(error);app.exit(1);});
