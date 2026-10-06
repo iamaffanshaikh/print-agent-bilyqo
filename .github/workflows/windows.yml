@@ -36,5 +36,19 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: pwsh
         run: |
-          $files = Get-ChildItem release -File | Where-Object { $_.Name -match '\.(exe|blockmap)$' -or $_.Name -eq 'latest.yml' } | ForEach-Object { $_.FullName }
-          gh release create $env:GITHUB_REF_NAME @files --title "Bilyqo Print Agent $env:GITHUB_REF_NAME" --generate-notes
+          $version = node -p "require('./package.json').version"
+          $installer = "release/BilyqoPrintAgent-Setup-$version.exe"
+          $payloadFiles = @($installer, "$installer.blockmap")
+          foreach ($file in @($payloadFiles) + @('release/latest.yml')) {
+            if (-not (Test-Path $file -PathType Leaf)) { throw "Missing release file: $file" }
+          }
+          gh release view $env:GITHUB_REF_NAME --repo $env:GITHUB_REPOSITORY
+          if ($LASTEXITCODE -ne 0) {
+            gh release create $env:GITHUB_REF_NAME --repo $env:GITHUB_REPOSITORY --verify-tag --title "Bilyqo Print Agent $env:GITHUB_REF_NAME" --generate-notes
+            if ($LASTEXITCODE -ne 0) { throw 'Could not create GitHub release' }
+          }
+          gh release upload $env:GITHUB_REF_NAME @payloadFiles --repo $env:GITHUB_REPOSITORY --clobber
+          if ($LASTEXITCODE -ne 0) { throw 'Could not upload installer and blockmap' }
+          # Publish the manifest only after its referenced files are available.
+          gh release upload $env:GITHUB_REF_NAME release/latest.yml --repo $env:GITHUB_REPOSITORY --clobber
+          if ($LASTEXITCODE -ne 0) { throw 'Could not upload update manifest' }
