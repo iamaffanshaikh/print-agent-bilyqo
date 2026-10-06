@@ -1,0 +1,27 @@
+const {app,BrowserWindow,ipcMain}=require('electron');
+const {join}=require('node:path');
+const {tmpdir}=require('node:os');
+const {writeFileSync}=require('node:fs');
+const {Store}=require('../dist/store');
+const {example,settingsSchema}=require('../dist/model');
+const {receiptText}=require('../dist/receipt');
+const {Queue}=require('../dist/queue');
+const {Printer}=require('../dist/printer');
+app.whenReady().then(async()=>{
+ const store=new Store(':memory:');const queue=new Queue(store,new Printer('',true));
+ ipcMain.handle('state',()=>({settings:store.settings(),printers:['Preview printer (no paper output)'],jobs:store.list(),preview:true,apiError:null,endpoint:'http://127.0.0.1:17891',receipt:receiptText(example(),store.settings())}));
+ ipcMain.handle('save',(_e,value)=>store.saveSettings(settingsSchema.parse(value)));
+ ipcMain.handle('test',()=>{const result=store.enqueue(example(),store.settings());void queue.drain();return result;});
+ const win=new BrowserWindow({show:false,width:1040,height:900,webPreferences:{preload:join(__dirname,'../dist/preload.js'),contextIsolation:true,sandbox:true}});
+ await win.loadFile(join(__dirname,'../dist/ui/index.html'));
+ const waitFor=async(expr)=>{for(let i=0;i<100;i++){if(await win.webContents.executeJavaScript(expr))return;await new Promise(r=>setTimeout(r,50));}throw new Error('UI check timed out: '+expr);};
+ await waitFor("document.getElementById('printer').options.length===2");
+ await win.webContents.executeJavaScript("document.getElementById('printer').selectedIndex=1; document.getElementById('settings').requestSubmit();");
+ await waitFor("document.getElementById('message').textContent.includes('Settings saved')");
+ await win.webContents.executeJavaScript("document.getElementById('test').click();");
+ await waitFor("document.getElementById('jobs').textContent.includes('Preview only')");
+ writeFileSync(join(tmpdir(),'bilyqo-agent-preview.png'),(await win.webContents.capturePage()).toPNG());
+ win.setSize(680,900);await new Promise(r=>setTimeout(r,100));
+ writeFileSync(join(tmpdir(),'bilyqo-agent-preview-compact.png'),(await win.webContents.capturePage()).toPNG());
+ console.log('UI smoke passed: settings saved, test job submitted, desktop and compact screenshots captured.');store.close();app.quit();
+}).catch(error=>{console.error(error);app.exit(1);});
